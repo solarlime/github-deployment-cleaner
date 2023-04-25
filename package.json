@@ -2,6 +2,7 @@
   "name": "github-deployment-cleaner",
   "private": true,
   "version": "1.0.0",
+  "homepage": "/github-deployment-cleaner",
   "license": "MIT",
   "type": "module",
   "scripts": {
