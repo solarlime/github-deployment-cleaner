@@ -1,0 +1,33 @@
+.main {
+  max-width: 38rem;
+  padding: 2rem;
+  margin: auto;
+}
+
+.logo {
+  display: block;
+  width: auto;
+}
+
+.logo a {
+  display: block;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.logo__svg {
+  height: 6em;
+  box-sizing: border-box;
+  transition: filter 0.25s;
+}
+.logo__svg:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.help {
+  padding: 2em 2em 0 2em;
+}
+
+.description {
+  color: #888;
+}
