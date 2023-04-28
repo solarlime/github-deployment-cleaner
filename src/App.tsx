@@ -1,11 +1,75 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ReactComponent as Logo } from './assets/logo.svg';
 import styles from './App.module.css';
 
+interface FormCollection extends HTMLFormControlsCollection {
+  user: HTMLInputElement, repo: HTMLInputElement, token: HTMLInputElement,
+}
+
 function Form() {
-  const handleSubmit = (event: React.FormEvent) => {
+  const isFirstRender = useRef(true);
+  const [credentials, setCredentials] = useState({ repo: '', user: '', token: '' });
+  const [button, setButton] = useState('Clean repository deployments');
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+    } else if (Object.values(credentials).some((value) => value === '')) {
+      console.log('Looks like you are in a development mode!');
+    } else {
+      const url = `https://api.github.com/repos/${credentials.user}/${credentials.repo}/deployments`;
+      const authHeader = `token ${credentials.token}`;
+
+      const getDeploymentsList = async () => {
+        const res = await fetch(`${url}`, { headers: { authorization: authHeader } });
+        return res.json();
+      };
+
+      const disableDeployment = async (id: number) => {
+        await fetch(`${url}/${id}/statuses`, {
+          method: 'POST',
+          body: JSON.stringify({ state: 'inactive' }),
+          headers: {
+            'content-type': 'application/json',
+            accept: 'application/vnd.github+json',
+            authorization: authHeader,
+          },
+        });
+        return id;
+      };
+
+      const deleteDeployment = async (id: number) => {
+        await fetch(`${url}/${id}`, {
+          method: 'DELETE',
+          headers: { authorization: authHeader },
+        });
+        return id;
+      };
+
+      const main = async () => {
+        const deployments = await getDeploymentsList();
+        console.log(`Found ${deployments.length} deployments!`);
+        const ids: Array<number> = deployments.map(({ id }: { id: number }) => id);
+        const disabledDeployments = await Promise.all(ids.map((id) => disableDeployment(id)));
+        console.log(`Disabled ${disabledDeployments.length} deployments!`);
+        const deletedDeployments = await Promise.all(
+          disabledDeployments.map((id) => deleteDeployment(id)),
+        );
+        console.log(`Deleted ${deletedDeployments.length} deployment${(deletedDeployments.length === 1) ? '' : 's'}!`);
+        setButton(`Deleted ${deletedDeployments.length} deployment${(deletedDeployments.length === 1) ? '' : 's'}!`);
+      };
+
+      main().catch((e) => {
+        console.error(e);
+        setButton('Error! Check the console');
+      });
+    }
+  }, [credentials]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log(event.target);
+    const form = ((event.target as HTMLFormElement).elements as FormCollection);
+    setCredentials({ repo: form.repo.value, user: form.user.value, token: form.token.value });
   };
 
   return (
@@ -13,9 +77,7 @@ function Form() {
       <input type="text" name="repo" placeholder="Fill in your repository name" required />
       <input type="text" name="user" placeholder="Fill in your GitHub username" required />
       <input type="text" name="token" placeholder="Fill in your GitHub token" required />
-      <button type="submit">
-        Clean repository deployments
-      </button>
+      <button type="submit">{button}</button>
     </form>
   );
 }
@@ -43,4 +105,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
