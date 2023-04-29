@@ -9,7 +9,12 @@ interface FormCollection extends HTMLFormControlsCollection {
 function Form() {
   const isFirstRender = useRef(true);
   const [credentials, setCredentials] = useState({ repo: '', user: '', token: '' });
-  const [button, setButton] = useState('Clean repository deployments');
+  const [formState, setFormState] = useState({
+    inputs: '',
+    button: 'Clean repository deployments',
+    colors: {},
+    disabled: false,
+  });
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -48,20 +53,36 @@ function Form() {
 
       const main = async () => {
         const deployments = await getDeploymentsList();
-        console.log(`Found ${deployments.length} deployments!`);
+        if (deployments.message && ['bad credentials', 'not found'].includes(deployments.message.toLowerCase())) {
+          throw Error('Incorrect credentials!');
+        }
+        if (deployments.length === 0) {
+          throw Error('No deployments to add!');
+        }
+        const quantity = (array: Array<any>) => ((array.length === 1) ? 'deployment' : 'deployments');
+        console.log(`Found ${deployments.length} ${quantity(deployments)}!`);
+
         const ids: Array<number> = deployments.map(({ id }: { id: number }) => id);
         const disabledDeployments = await Promise.all(ids.map((id) => disableDeployment(id)));
-        console.log(`Disabled ${disabledDeployments.length} deployments!`);
+        console.log(`Disabled ${disabledDeployments.length} ${quantity(disabledDeployments)}!`);
+
         const deletedDeployments = await Promise.all(
           disabledDeployments.map((id) => deleteDeployment(id)),
         );
-        console.log(`Deleted ${deletedDeployments.length} deployment${(deletedDeployments.length === 1) ? '' : 's'}!`);
-        setButton(`Deleted ${deletedDeployments.length} deployment${(deletedDeployments.length === 1) ? '' : 's'}!`);
+        console.log(`Deleted ${deletedDeployments.length} ${quantity(deletedDeployments)}!`);
+
+        setFormState((previous) => (
+          { ...previous, button: `Deleted ${deletedDeployments.length} ${quantity(deletedDeployments)}!`, disabled: true }
+        ));
       };
 
       main().catch((e) => {
         console.error(e);
-        setButton('Error! Check the console');
+        setFormState((previous) => (
+          {
+            ...previous, button: (e.message) ? e.message : 'Error! Check the console', disabled: true, colors: { backgroundColor: 'crimson' },
+          }
+        ));
       });
     }
   }, [credentials]);
@@ -74,10 +95,10 @@ function Form() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <input type="text" name="repo" placeholder="Fill in your repository name" required />
-      <input type="text" name="user" placeholder="Fill in your GitHub username" required />
-      <input type="text" name="token" placeholder="Fill in your GitHub token" required />
-      <button type="submit">{button}</button>
+      <input type="text" name="repo" placeholder="Fill in your repository name" defaultValue={formState.inputs} required />
+      <input type="text" name="user" placeholder="Fill in your GitHub username" defaultValue={formState.inputs} required />
+      <input type="text" name="token" placeholder="Fill in your GitHub token" defaultValue={formState.inputs} required />
+      <button type="submit" style={formState.colors} disabled={formState.disabled}>{formState.button}</button>
     </form>
   );
 }

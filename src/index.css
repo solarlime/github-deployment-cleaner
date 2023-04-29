@@ -56,6 +56,10 @@ button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
+button:disabled {
+  background-color: #78b856;
+  cursor: default;
+}
 svg {
   fill: rgba(255, 255, 255, 0.87);
 }
