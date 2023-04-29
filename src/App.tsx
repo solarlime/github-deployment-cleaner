@@ -6,17 +6,24 @@ interface FormCollection extends HTMLFormControlsCollection {
   user: HTMLInputElement, repo: HTMLInputElement, token: HTMLInputElement,
 }
 
+const initialFormState = {
+  inputs: '',
+  button: 'Clean repository deployments',
+  colors: {},
+  disabled: false,
+};
+Object.freeze(initialFormState);
+
+// A form component
 function Form() {
+  // Used this ref because useEffect is triggered twice due to the development mode
   const isFirstRender = useRef(true);
+  const formRef = useRef(null);
   const [credentials, setCredentials] = useState({ repo: '', user: '', token: '' });
-  const [formState, setFormState] = useState({
-    inputs: '',
-    button: 'Clean repository deployments',
-    colors: {},
-    disabled: false,
-  });
+  const [formState, setFormState] = useState(initialFormState);
 
   useEffect(() => {
+    // useEffect shouldn't work on the first form render, only on the second. Fixed it with a ref
     if (isFirstRender.current) {
       isFirstRender.current = false;
     } else if (Object.values(credentials).some((value) => value === '')) {
@@ -25,11 +32,13 @@ function Form() {
       const url = `https://api.github.com/repos/${credentials.user}/${credentials.repo}/deployments`;
       const authHeader = `token ${credentials.token}`;
 
+      // At first, we need to get a list of deployments
       const getDeploymentsList = async () => {
         const res = await fetch(`${url}`, { headers: { authorization: authHeader } });
         return res.json();
       };
 
+      // Then — to disable them
       const disableDeployment = async (id: number) => {
         await fetch(`${url}/${id}/statuses`, {
           method: 'POST',
@@ -43,6 +52,7 @@ function Form() {
         return id;
       };
 
+      // After all — to delete them
       const deleteDeployment = async (id: number) => {
         await fetch(`${url}/${id}`, {
           method: 'DELETE',
@@ -53,11 +63,12 @@ function Form() {
 
       const main = async () => {
         const deployments = await getDeploymentsList();
+        // Handling errors
         if (deployments.message && ['bad credentials', 'not found'].includes(deployments.message.toLowerCase())) {
           throw Error('Incorrect credentials!');
         }
         if (deployments.length === 0) {
-          throw Error('No deployments to add!');
+          throw Error('No deployments found!');
         }
         const quantity = (array: Array<any>) => ((array.length === 1) ? 'deployment' : 'deployments');
         console.log(`Found ${deployments.length} ${quantity(deployments)}!`);
@@ -83,6 +94,13 @@ function Form() {
             ...previous, button: (e.message) ? e.message : 'Error! Check the console', disabled: true, colors: { backgroundColor: 'crimson' },
           }
         ));
+      }).finally(() => {
+        // Whatever the result is, we need to add a handler to reset the form
+        const formElement = formRef.current as unknown as HTMLFormElement;
+        formElement.addEventListener('input', () => {
+          setFormState(initialFormState);
+          formElement.reset();
+        }, { once: true });
       });
     }
   }, [credentials]);
@@ -90,11 +108,12 @@ function Form() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = ((event.target as HTMLFormElement).elements as FormCollection);
+    // A trigger for useEffect
     setCredentials({ repo: form.repo.value, user: form.user.value, token: form.token.value });
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} ref={formRef}>
       <input type="text" name="repo" placeholder="Fill in your repository name" defaultValue={formState.inputs} required />
       <input type="text" name="user" placeholder="Fill in your GitHub username" defaultValue={formState.inputs} required />
       <input type="text" name="token" placeholder="Fill in your GitHub token" defaultValue={formState.inputs} required />
@@ -103,6 +122,7 @@ function Form() {
   );
 }
 
+// A main component
 function App() {
   return (
     <main className={styles.main}>
