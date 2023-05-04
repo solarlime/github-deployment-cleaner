@@ -9,8 +9,11 @@ import App from '../src/App';
 const url = 'https://api.github.com/repos/user/repo/deployments';
 const deployments = [{ id: 123 }, { id: 456 }];
 const server = setupServer(
+  // @ts-ignore
   rest.get(url, (req, res, ctx) => res(ctx.json(deployments))),
+  // @ts-ignore
   rest.post(`${url}/:id/statuses`, (req, res, ctx) => res(ctx.json({ success: true }))),
+  // @ts-ignore
   rest.delete(`${url}/:id`, (req, res, ctx) => res(ctx.json({ success: true }))),
 );
 
@@ -21,25 +24,42 @@ beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-describe('Testing App component', () => {
-  test('Initial load', async () => {
-    const { getByText } = render(<App />);
-    expect(getByText('GitHub Deployment Cleaner')).toBeInTheDocument();
-  });
+test('Initial load', async () => {
+  const { getByText } = render(<App />);
+  expect(getByText('GitHub Deployment Cleaner')).toBeInTheDocument();
+});
 
-  test('Successful cleaning', async () => {
+describe.each`
+  gitUser    | repo      | token      | time | expected
+  ${'loser'} | ${'repo'} | ${'token'} | ${1} | ${'Incorrect credentials!'}
+  ${'user'}  | ${'repo'} | ${'token'} | ${1} | ${'Deleted 2 deployments!'}
+  ${'user'}  | ${'repo'} | ${'token'} | ${2} | ${'No deployments found!'}
+`('$expected', ({
+  gitUser, repo, token, time, expected,
+}) => {
+  test('Testing App component', async () => {
     const { getByPlaceholderText, getByRole } = render(<App />);
     const repoInput = getByPlaceholderText('Fill in your repository name');
     const userInput = getByPlaceholderText('Fill in your GitHub username');
     const tokenInput = getByPlaceholderText('Fill in your GitHub token');
     const user = userEvent.setup();
-    await user.type(userInput, 'user');
-    await user.type(repoInput, 'repo');
-    await user.type(tokenInput, 'token');
+    await user.type(userInput, gitUser);
+    await user.type(repoInput, repo);
+    await user.type(tokenInput, token);
     const button = getByRole('button', { name: 'Clean repository deployments' });
+    if (time === 2) {
+      server.use(
+        // @ts-ignore
+        rest.get(url, (req, res, ctx) => res.once(ctx.json([]))),
+      );
+    }
     await user.click(button);
     await waitFor(() => {
-      expect(button).toHaveTextContent('Deleted 2 deployments!');
+      expect(button).toHaveTextContent(expected);
     });
+    if (time === 2) {
+      await user.type(userInput, '!');
+      expect(repoInput).toHaveValue('');
+    }
   });
 });
