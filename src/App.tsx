@@ -40,7 +40,7 @@ function Form() {
 
       // Then — to disable them
       const disableDeployment = async (id: number) => {
-        await fetch(`${url}/${id}/statuses`, {
+        const res = await fetch(`${url}/${id}/statuses`, {
           method: 'POST',
           body: JSON.stringify({ state: 'inactive' }),
           headers: {
@@ -49,6 +49,9 @@ function Form() {
             authorization: authHeader,
           },
         });
+        if (res.status === 404) {
+          throw Error('Access denied!');
+        }
         return id;
       };
 
@@ -74,17 +77,21 @@ function Form() {
         console.log(`Found ${deployments.length} ${quantity(deployments)}!`);
 
         const ids: Array<number> = deployments.map(({ id }: { id: number }) => id);
-        const disabledDeployments = await Promise.all(ids.map((id) => disableDeployment(id)));
-        console.log(`Disabled ${disabledDeployments.length} ${quantity(disabledDeployments)}!`);
+        try {
+          const disabledDeployments = await Promise.all(ids.map((id) => disableDeployment(id)));
+          console.log(`Disabled ${disabledDeployments.length} ${quantity(disabledDeployments)}!`);
 
-        const deletedDeployments = await Promise.all(
-          disabledDeployments.map((id) => deleteDeployment(id)),
-        );
-        console.log(`Deleted ${deletedDeployments.length} ${quantity(deletedDeployments)}!`);
+          const deletedDeployments = await Promise.all(
+            disabledDeployments.map((id) => deleteDeployment(id)),
+          );
+          console.log(`Deleted ${deletedDeployments.length} ${quantity(deletedDeployments)}!`);
 
-        setFormState((previous) => (
-          { ...previous, button: `Deleted ${deletedDeployments.length} ${quantity(deletedDeployments)}!`, disabled: true }
-        ));
+          setFormState((previous) => (
+            { ...previous, button: `Deleted ${deletedDeployments.length} ${quantity(deletedDeployments)}!`, disabled: true }
+          ));
+        } catch (e) {
+          throw (e as Error);
+        }
       };
 
       main().catch((e) => {
