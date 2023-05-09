@@ -11,8 +11,12 @@ const deployments = [{ id: 123 }, { id: 456 }];
 const server = setupServer(
   // @ts-ignore
   rest.get(url, (req, res, ctx) => res(ctx.json(deployments))),
-  // @ts-ignore
-  rest.post(`${url}/:id/statuses`, (req, res, ctx) => res(ctx.json({ success: true }))),
+  rest.post(`${url}/:id/statuses`, (req, res, ctx) => {
+    if (req.headers.get('authorization')?.includes('notmytoken')) {
+      return res(ctx.status(404), ctx.body('Not found'));
+    }
+    return res(ctx.json({ success: true }));
+  }),
   // @ts-ignore
   rest.delete(`${url}/:id`, (req, res, ctx) => res(ctx.json({ success: true }))),
 );
@@ -30,10 +34,11 @@ test('Initial load', async () => {
 });
 
 describe.each`
-  gitUser    | repo      | token      | time | expected
-  ${'loser'} | ${'repo'} | ${'token'} | ${1} | ${'Incorrect credentials!'}
-  ${'user'}  | ${'repo'} | ${'token'} | ${1} | ${'Deleted 2 deployments!'}
-  ${'user'}  | ${'repo'} | ${'token'} | ${2} | ${'No deployments found!'}
+  gitUser    | repo      | token           | time | expected
+  ${'user'}  | ${'repo'} | ${'notmytoken'} | ${1} | ${'Access denied!'}  
+  ${'loser'} | ${'repo'} | ${'token'}      | ${1} | ${'Incorrect credentials!'}
+  ${'user'}  | ${'repo'} | ${'token'}      | ${1} | ${'Deleted 2 deployments!'}
+  ${'user'}  | ${'repo'} | ${'token'}      | ${2} | ${'No deployments found!'}
 `('$expected', ({
   gitUser, repo, token, time, expected,
 }) => {
