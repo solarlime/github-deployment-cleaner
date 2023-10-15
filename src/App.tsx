@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ReactComponent as Logo } from './assets/logo.svg';
+import Logo from './assets/logo.svg?react';
 import styles from './App.module.css';
 
 interface FormCollection extends HTMLFormControlsCollection {
