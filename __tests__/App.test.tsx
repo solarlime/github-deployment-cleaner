@@ -1,24 +1,37 @@
-import { rest } from 'msw';
+import { http } from 'msw';
 import { setupServer } from 'msw/node';
 import { render, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import 'cross-fetch/polyfill';
 import App from '../src/App';
 
 const url = 'https://api.github.com/repos/user/repo/deployments';
 const deployments = [{ id: 123 }, { id: 456 }];
 const server = setupServer(
-  // @ts-ignore
-  rest.get(url, (req, res, ctx) => res(ctx.json(deployments))),
-  rest.post(`${url}/:id/statuses`, (req, res, ctx) => {
-    if (req.headers.get('authorization')?.includes('notmytoken')) {
-      return res(ctx.status(404), ctx.body('Not found'));
+  http.get(url, () => new Response(JSON.stringify(deployments), {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })),
+  http.post(`${url}/:id/statuses`, async ({ request }) => {
+    const headers = await request.headers;
+    if (headers.get('authorization')?.includes('notmytoken')) {
+      return new Response(JSON.stringify('Not found'), {
+        status: 404,
+      });
     }
-    return res(ctx.json({ success: true }));
+    return new Response(JSON.stringify({ success: true }), {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }),
   // @ts-ignore
-  rest.delete(`${url}/:id`, (req, res, ctx) => res(ctx.json({ success: true }))),
+  http.delete(`${url}/:id`, () => new Response(JSON.stringify({ success: true }), {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })),
 );
 
 beforeAll(() => server.listen());
@@ -54,8 +67,11 @@ describe.each`
     const button = getByRole('button', { name: 'Clean repository deployments' });
     if (time === 2) {
       server.use(
-        // @ts-ignore
-        rest.get(url, (req, res, ctx) => res.once(ctx.json([]))),
+        http.get(url, () => new Response(JSON.stringify([]), {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }), { once: true }),
       );
     }
     await user.click(button);
