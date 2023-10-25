@@ -58,6 +58,7 @@ describe.each`
         rest.get(url, (req, res, ctx) => res.once(ctx.json([]))),
       );
     }
+    console.log('Token:', token);
     await user.click(button);
     await waitFor(() => {
       expect(button).toHaveTextContent(expected);
