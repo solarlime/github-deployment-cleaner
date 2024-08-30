@@ -46,6 +46,25 @@ test('Initial load', async () => {
   expect(getByText('GitHub Deployment Cleaner')).toBeInTheDocument();
 });
 
+test('Parsing URL', async () => {
+  const { getByPlaceholderText } = render(<App />);
+  const repoInput = getByPlaceholderText('Fill in your repository name');
+  const userInput = getByPlaceholderText('Fill in your GitHub username');
+  const user = userEvent.setup();
+  await user.click(repoInput);
+  await user.paste('https://github.com/user/repo/something_else');
+  expect(repoInput).toHaveValue('repo');
+  expect(userInput).toHaveValue('user');
+
+  await user.clear(repoInput);
+  await user.clear(userInput);
+
+  await user.click(userInput);
+  await user.paste('https://github.com/loser/repo/something_else');
+  expect(repoInput).toHaveValue('repo');
+  expect(userInput).toHaveValue('loser');
+});
+
 describe.each`
   gitUser    | repo      | token           | time | expected
   ${'user'}  | ${'repo'} | ${'notmytoken'} | ${1} | ${'Access denied!'}  

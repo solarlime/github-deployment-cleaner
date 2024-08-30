@@ -114,15 +114,42 @@ function Form() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = ((event.target as HTMLFormElement).elements as FormCollection);
+    const form = document.forms[0].elements as FormCollection;
     // A trigger for useEffect
     setCredentials({ repo: form.repo.value, user: form.user.value, token: form.token.value });
   };
 
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = event.target;
+    if (value.match('https://github.com/')) {
+      // @ts-ignore
+      const [user, repo, ...rest] = value.replace('https://github.com/', '').split('/');
+      const form = document.forms[0].elements as FormCollection;
+      if (repo && user) {
+        form.repo.value = repo;
+        form.user.value = user;
+      }
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} ref={formRef}>
-      <input type="text" name="repo" placeholder="Fill in your repository name" defaultValue={formState.inputs} required />
-      <input type="text" name="user" placeholder="Fill in your GitHub username" defaultValue={formState.inputs} required />
+    <form name="main-form" onSubmit={handleSubmit} ref={formRef}>
+      <input
+        type="text"
+        name="repo"
+        placeholder="Fill in your repository name"
+        defaultValue={formState.inputs}
+        onChange={handleChange}
+        required
+      />
+      <input
+        type="text"
+        name="user"
+        placeholder="Fill in your GitHub username"
+        defaultValue={formState.inputs}
+        onChange={handleChange}
+        required
+      />
       <input type="text" name="token" placeholder="Fill in your GitHub token" defaultValue={formState.inputs} required />
       <button type="submit" style={formState.colors} disabled={formState.disabled}>{formState.button}</button>
     </form>
